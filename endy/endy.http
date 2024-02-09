@@ -1,0 +1,6 @@
+@endy_HostAddress = http://localhost:5120
+
+GET {{endy_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
