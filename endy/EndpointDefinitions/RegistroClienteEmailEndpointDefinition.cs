@@ -1,23 +1,24 @@
 ﻿using endy.EndpointDiscovery;
 using endy.Model;
 using endy.Services;
+using Microsoft.AspNetCore.Authorization;
 using Newtonsoft.Json;
 using System.Text.RegularExpressions;
 
 namespace endy.EndpointDefinitions
 {
-    public class RegistroClienteEmailEndpointDefinitions : IEndpointDefinitionExtensions
+    public class RegistroClienteEmailEndpointDefinition : IEndpointDefinitionExtensions
     {
-        private readonly ILogger<RegistroClienteEmailEndpointDefinitions> _logger;
+        private readonly ILogger<RegistroClienteEmailEndpointDefinition> _logger;
         private IConfiguration _configuration;
 
-        public RegistroClienteEmailEndpointDefinitions(ILogger<RegistroClienteEmailEndpointDefinitions> logger, IConfiguration configuration)
+        public RegistroClienteEmailEndpointDefinition(ILogger<RegistroClienteEmailEndpointDefinition> logger, IConfiguration configuration)
         {
             _logger = logger;
             _configuration = configuration;
         }
 
-        public RegistroClienteEmailEndpointDefinitions() { }
+        public RegistroClienteEmailEndpointDefinition() { }
 
         public void DefineServices(IServiceCollection services, IConfiguration configuration)
         {
@@ -43,13 +44,14 @@ namespace endy.EndpointDefinitions
                 .WithTags("Cliente");
         }
 
-        public IResult GetByEmail(string Email)
+        [Authorize]
+        public IResult GetByEmail(string email)
         {
             List<ClienteModel> clientes = new();
 
             using (var context = new DatabaseContextService(_configuration))
             {
-                clientes = context.ClienteModels.Where(x => x.Email == Email).ToList();
+                clientes = context.ClienteModels.Where(x => x.Email == email).ToList();
             }
 
             if (!clientes.Any())
@@ -59,6 +61,7 @@ namespace endy.EndpointDefinitions
             return Results.Ok(JsonConvert.SerializeObject(clientes));
         }
 
+        [Authorize]
         public IResult SalvarCliente(ClienteModel model)
         {
             if (IsValidEmail(model.Email) && !string.IsNullOrWhiteSpace(model.Nome))

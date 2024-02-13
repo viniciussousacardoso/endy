@@ -1,17 +1,31 @@
-using endy.Model;
-using endy.Services;
-using Microsoft.EntityFrameworkCore;
-using MySql.Data.MySqlClient;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-using NetDevPack.Identity;
 using endy.EndpointDiscovery;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+var jwtIssuer = builder.Configuration.GetSection("Jwt:Issuer").Get<string>();
+var jwtKey = builder.Configuration.GetSection("Jwt:Key").Get<string>();
+var jwtAudience = builder.Configuration.GetSection("Jwt:Audience").Get<string>();
+
+builder.Services.AddAuthentication("Bearer")
+          .AddJwtBearer("Bearer", options =>
+          {
+              options.TokenValidationParameters = new TokenValidationParameters
+              {
+                  ValidateIssuer = true,
+                  ValidateAudience = true,
+                  ValidateLifetime = true,
+                  ValidateIssuerSigningKey = true,
+                  ValidIssuer = jwtIssuer,
+                  ValidAudience = jwtAudience,
+                  IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+              };
+          });
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddIdentityEntityFrameworkContextConfiguration(options => options.UseMySQL(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -29,8 +43,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 app.UseCors("CorsPolicy");
-app.MapControllers();
 
 app.Run();
