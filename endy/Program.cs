@@ -10,26 +10,66 @@ var jwtIssuer = builder.Configuration.GetSection("Jwt:Issuer").Get<string>();
 var jwtKey = builder.Configuration.GetSection("Jwt:Key").Get<string>();
 var jwtAudience = builder.Configuration.GetSection("Jwt:Audience").Get<string>();
 
-builder.Services.AddAuthentication("Bearer")
-          .AddJwtBearer("Bearer", options =>
-          {
-              options.TokenValidationParameters = new TokenValidationParameters
-              {
-                  ValidateIssuer = true,
-                  ValidateAudience = true,
-                  ValidateLifetime = true,
-                  ValidateIssuerSigningKey = true,
-                  ValidIssuer = jwtIssuer,
-                  ValidAudience = jwtAudience,
-                  IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
-              };
-          });
+// Configurar autenticação JWT
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        };
+    });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("user", policy => policy.RequireClaim("Store", "user"));
+    options.AddPolicy("admin", policy => policy.RequireClaim("Store", "admin"));
+});
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddIdentityEntityFrameworkContextConfiguration(options => options.UseMySQL(builder.Configuration.GetConnectionString("DefaultConnection")));
-builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Configurar o Swagger para incluir a autenticação JWT
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme (Example: 'Bearer 12345abcdef')",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement()
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                },
+                Scheme = "oauth2",
+                Name = "Bearer",
+                In = Microsoft.OpenApi.Models.ParameterLocation.Header
+            },
+            new List<string>()
+        }
+    });
+});
+
+// Configurar Entity Framework
+builder.Services.AddIdentityEntityFrameworkContextConfiguration(options =>
+    options.UseMySQL(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 builder.Services.AddEndpointDefinitions(builder.Configuration, typeof(IEndpointDefinitionExtensions));
 
 var app = builder.Build();
@@ -42,7 +82,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseCors("CorsPolicy");

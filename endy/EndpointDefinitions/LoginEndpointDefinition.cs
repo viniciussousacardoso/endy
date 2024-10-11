@@ -1,23 +1,34 @@
 ﻿using endy.EndpointDiscovery;
 using endy.Model;
-using endy.Services;
+using endy.Services.RegistraUsuarioService;
+using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.IdentityModel.Tokens;
-using Newtonsoft.Json;
-using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace endy.EndpointDefinitions
 {
     public class LoginEndpointDefinition : IEndpointDefinitionExtensions
     {
-        private readonly ILogger<LoginEndpointDefinition> _logger;
+        private IServiceCollection _services;
         private IConfiguration _configuration;
+        private readonly ILogger<LoginEndpointDefinition> _logger;
 
         public void DefineServices(IServiceCollection services, IConfiguration configuration)
         {
+            _services = services;
             _configuration = configuration;
         }
+
+        public LoginEndpointDefinition(ILogger<LoginEndpointDefinition> logger, IConfiguration configuration)
+        {
+            _configuration = configuration;
+            _logger = logger;
+        }
+
+        public LoginEndpointDefinition() { }
 
         public void DefineEndpoints(WebApplication app)
         {
@@ -28,30 +39,93 @@ namespace endy.EndpointDefinitions
                 .Produces(StatusCodes.Status404NotFound)
                 .WithName("GetToken")
                 .WithTags("Login");
+
+            app.MapPost("api/v1/registraUsuario", RegistrarUsuario)
+               .ProducesValidationProblem()
+               .Produces(StatusCodes.Status200OK)
+               .Produces(StatusCodes.Status400BadRequest)
+               .Produces(StatusCodes.Status404NotFound)
+               .WithName("Registrar")
+    .WithTags("Login");
         }
 
-        public IResult GetToken()
+        public IResult GetToken(HttpContext httpContext, string user = "", string pass = "")
         {
+            var logger = httpContext.RequestServices.GetService<ILogger<LoginEndpointDefinition>>();
+            var configuration = httpContext.RequestServices.GetService<IConfiguration>();
+            try
+            {
+                RegistraUsuarioService registraUsuarioService = new RegistraUsuarioService(_services, _configuration);
 
-            var issuer = _configuration["Jwt:Issuer"];
-            var audience = _configuration["Jwt:Audience"];
+                var issuer = configuration["Jwt:Issuer"];
+                var audience = configuration["Jwt:Audience"];
+                var key = configuration["Jwt:Key"];
 
-            var now = DateTime.Now;
-            var expiry = Convert.ToDateTime(now).AddMinutes(10);
+                if (string.IsNullOrEmpty(issuer) || string.IsNullOrEmpty(audience) || string.IsNullOrEmpty(key))
+                {
+                    logger.LogError("Configurações JWT estão incompletas.");
+                    return Results.BadRequest("Configurações JWT estão incompletas.");
+                }
 
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
-            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-            var token = new JwtSecurityToken(issuer: issuer, audience: audience, notBefore: now, expires: expiry, signingCredentials: credentials);
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var stringToken = tokenHandler.WriteToken(token);
+                var now = DateTime.UtcNow;
+                var expiry = now.AddMinutes(30);
 
-            return Results.Ok(stringToken);
+                var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
+                var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+
+                var claims = new List<Claim>();
+
+                if (registraUsuarioService.loginUsuarioService(user.ToUpper(), pass))
+                {
+                    claims.Add(new Claim(JwtRegisteredClaimNames.Sub, user == string.Empty ? "userGenerico" : user));
+                    claims.Add(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()));
+                    claims.Add(new Claim(ClaimTypes.Role, "Admin"));
+                }
+                else
+                {
+                    claims.Add(new Claim(JwtRegisteredClaimNames.Sub, user == string.Empty ? "userGenerico" : user));
+                    claims.Add(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()));
+                }
+
+                var token = new JwtSecurityToken(
+                    issuer: issuer,
+                    audience: audience,
+                    claims: claims,
+                    notBefore: now,
+                    expires: expiry,
+                    signingCredentials: credentials);
+
+                var tokenHandler = new JwtSecurityTokenHandler();
+
+                var stringToken = tokenHandler.WriteToken(token);
+
+                return Results.Ok($"Bearer {stringToken}");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Erro ao gerar o token");
+                return Results.Problem("Ocorreu um erro ao gerar o token.");
+            }
         }
 
-        public DateTime ToCustomFormat(DateTime dateTime)
+        public IResult RegistrarUsuario(string userName, string pass)
         {
-            // Crie uma nova instância de DateTime com o formato desejado
-            return new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, dateTime.Minute, dateTime.Second);
+            userName = userName.ToUpper();
+            try
+            {
+                RegistraUsuarioService registraUsuarioService = new RegistraUsuarioService(_services, _configuration);
+
+                if (registraUsuarioService.registrarUsuario(userName, pass))
+                {
+                    return Results.Ok("Usuario cadastrado com sucesso!!!");
+                }
+                return Results.Problem("Não foi possivel realizar o cadastro");
+            }
+            catch (Exception ex)
+            {
+                return Results.BadRequest(ex);
+            }
         }
+
     }
 }

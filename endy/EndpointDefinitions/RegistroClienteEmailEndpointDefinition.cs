@@ -32,6 +32,7 @@ namespace endy.EndpointDefinitions
                 .Produces(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status400BadRequest)
                 .Produces(StatusCodes.Status404NotFound)
+                .Produces(StatusCodes.Status401Unauthorized)
                 .WithName("GetByEmail")
                 .WithTags("Cliente");
 
@@ -40,7 +41,17 @@ namespace endy.EndpointDefinitions
                 .Produces(StatusCodes.Status200OK)
                 .Produces(StatusCodes.Status400BadRequest)
                 .Produces(StatusCodes.Status404NotFound)
+                .Produces(StatusCodes.Status401Unauthorized)
                 .WithName("SaveCliente")
+                .WithTags("Cliente");
+
+            app.MapGet("api/v1/cliente/buscatodos", GetAllClientes)
+                .ProducesValidationProblem()
+                .Produces(StatusCodes.Status200OK)
+                .Produces(StatusCodes.Status400BadRequest)
+                .Produces(StatusCodes.Status404NotFound)
+                .Produces (StatusCodes.Status401Unauthorized)
+                .WithName("GetAllClientes")
                 .WithTags("Cliente");
         }
 
@@ -61,6 +72,23 @@ namespace endy.EndpointDefinitions
             return Results.Ok(JsonConvert.SerializeObject(clientes));
         }
 
+        [Authorize(Roles ="Admin")]
+        public IResult GetAllClientes()
+        {
+            List<ClienteModel> clientes = new();
+
+            using (var context = new DatabaseContextService(_configuration))
+            {
+                clientes = context.ClienteModels.ToList();
+            }
+
+            if (!clientes.Any())
+            {
+                return Results.NotFound("Nenhum dado encontrado.");
+            }
+            return Results.Ok(JsonConvert.SerializeObject(clientes));
+        }
+
         [Authorize]
         public IResult SalvarCliente(ClienteModel model)
         {
@@ -72,6 +100,8 @@ namespace endy.EndpointDefinitions
                     {
                         Email = model.Email,
                         Nome = model.Nome,
+                        telefone = model.telefone,
+                        motivo_contato = model.motivo_contato,
                     };
 
                     context.ClienteModels.Add(cliente);
@@ -81,7 +111,7 @@ namespace endy.EndpointDefinitions
                 return Results.Ok($"Cliente {model.Nome} - {model.Email} salvo com sucesso!");
             }
 
-            return Results.BadRequest("Email Invalido por favor insira um email valido");
+            return Results.BadRequest("Email Invalido por favor insira um email valido.");
         }
 
         private static bool IsValidEmail(string email)

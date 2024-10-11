@@ -1,12 +1,12 @@
 ﻿using endy.Model;
 using Microsoft.EntityFrameworkCore;
-using System.Configuration;
 
 namespace endy.Services
 {
     public class DatabaseContextService : DbContext
     {
         public DbSet<ClienteModel> ClienteModels { get; set; }
+        public DbSet<UsuarioModel> usuarioModels { get; set; }
 
         private IConfiguration _configuration;
         public DatabaseContextService(IConfiguration configuration)
