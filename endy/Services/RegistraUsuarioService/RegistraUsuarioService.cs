@@ -1,9 +1,4 @@
 ﻿using endy.Model;
-using Microsoft.AspNetCore.Cryptography.KeyDerivation;
-using Microsoft.EntityFrameworkCore;
-using MySqlX.XDevAPI;
-using Newtonsoft.Json;
-using System.Security.Cryptography;
 
 namespace endy.Services.RegistraUsuarioService
 {

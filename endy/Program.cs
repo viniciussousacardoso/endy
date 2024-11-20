@@ -10,7 +10,6 @@ var jwtIssuer = builder.Configuration.GetSection("Jwt:Issuer").Get<string>();
 var jwtKey = builder.Configuration.GetSection("Jwt:Key").Get<string>();
 var jwtAudience = builder.Configuration.GetSection("Jwt:Audience").Get<string>();
 
-// Configurar autenticação JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -35,7 +34,6 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// Configurar o Swagger para incluir a autenticação JWT
 builder.Services.AddSwaggerGen(options =>
 {
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
@@ -66,7 +64,6 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-// Configurar Entity Framework
 builder.Services.AddIdentityEntityFrameworkContextConfiguration(options =>
     options.UseMySQL(builder.Configuration.GetConnectionString("DefaultConnection")));
 

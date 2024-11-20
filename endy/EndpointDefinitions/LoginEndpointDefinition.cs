@@ -1,11 +1,8 @@
 ﻿using endy.EndpointDiscovery;
-using endy.Model;
 using endy.Services.RegistraUsuarioService;
-using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
 
 namespace endy.EndpointDefinitions
@@ -122,7 +119,9 @@ namespace endy.EndpointDefinitions
                 return Results.Problem("Não foi possivel realizar o cadastro");
             }
             catch (Exception ex)
-            {
+            { 
+                if(ex.InnerException.ToString().Contains("usuario.user_UNIQUE"))
+                    return Results.BadRequest("Erro, usuario já cadastrado.");
                 return Results.BadRequest(ex);
             }
         }
