@@ -25,6 +25,13 @@ namespace endy.EndpointDefinitions
             _configuration = configuration;
         }
 
+        // Ponto de extensão usado pelos testes unitários para substituir o contexto real
+        // por um dublê (ex.: provider em memória), sem alterar o comportamento em produção.
+        protected virtual DatabaseContextService CreateContext()
+        {
+            return new DatabaseContextService(_configuration);
+        }
+
         public void DefineEndpoints(WebApplication app)
         {
             app.MapGet("api/v1/cliente/buscacliente", GetByEmail)
@@ -60,7 +67,7 @@ namespace endy.EndpointDefinitions
         {
             List<ClienteModel> clientes = new();
 
-            using (var context = new DatabaseContextService(_configuration))
+            using (var context = CreateContext())
             {
                 clientes = context.ClienteModels.Where(x => x.Email == email).ToList();
             }
@@ -77,7 +84,7 @@ namespace endy.EndpointDefinitions
         {
             List<ClienteModel> clientes = new();
 
-            using (var context = new DatabaseContextService(_configuration))
+            using (var context = CreateContext())
             {
                 clientes = context.ClienteModels.ToList();
             }
@@ -94,7 +101,7 @@ namespace endy.EndpointDefinitions
         {
             if (IsValidEmail(model.Email) && !string.IsNullOrWhiteSpace(model.Nome))
             {
-                using (var context = new DatabaseContextService(_configuration))
+                using (var context = CreateContext())
                 {
                     ClienteModel cliente = new()
                     {

@@ -14,6 +14,12 @@ namespace endy.Services
             _configuration = configuration;
         }
 
+        // Permite injetar opções já configuradas (ex.: provider InMemory/SQLite em testes),
+        // sem alterar o comportamento padrão em produção (que continua usando MySQL).
+        public DatabaseContextService(DbContextOptions<DatabaseContextService> options) : base(options)
+        {
+        }
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             if (!optionsBuilder.IsConfigured)

@@ -27,6 +27,13 @@ namespace endy.EndpointDefinitions
 
         public LoginEndpointDefinition() { }
 
+        // Ponto de extensão usado pelos testes unitários para substituir a implementação real
+        // por um dublê (mock), sem alterar o comportamento em produção.
+        protected virtual IRegistraUsuarioService CreateRegistraUsuarioService()
+        {
+            return new RegistraUsuarioService(_services, _configuration);
+        }
+
         public void DefineEndpoints(WebApplication app)
         {
             app.MapPost("api/v1/generatetoken", GetToken)
@@ -52,7 +59,7 @@ namespace endy.EndpointDefinitions
             var configuration = httpContext.RequestServices.GetService<IConfiguration>();
             try
             {
-                RegistraUsuarioService registraUsuarioService = new RegistraUsuarioService(_services, _configuration);
+                IRegistraUsuarioService registraUsuarioService = CreateRegistraUsuarioService();
 
                 var issuer = configuration["Jwt:Issuer"];
                 var audience = configuration["Jwt:Audience"];
@@ -110,7 +117,7 @@ namespace endy.EndpointDefinitions
             userName = userName.ToUpper();
             try
             {
-                RegistraUsuarioService registraUsuarioService = new RegistraUsuarioService(_services, _configuration);
+                IRegistraUsuarioService registraUsuarioService = CreateRegistraUsuarioService();
 
                 if (registraUsuarioService.registrarUsuario(userName, pass))
                 {

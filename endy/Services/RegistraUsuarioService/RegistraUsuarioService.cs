@@ -6,11 +6,20 @@ namespace endy.Services.RegistraUsuarioService
     {
         private IServiceProvider _serviceProvider;
         private IConfiguration _configuration;
+        private readonly Func<DatabaseContextService> _contextFactory;
 
         public RegistraUsuarioService(IServiceCollection services, IConfiguration configuration)
+            : this(services, configuration, null)
+        {
+        }
+
+        // Construtor adicional que permite injetar a criação do DbContext (ex.: para testes
+        // unitários com um provider em memória), sem alterar o comportamento padrão em produção.
+        public RegistraUsuarioService(IServiceCollection services, IConfiguration configuration, Func<DatabaseContextService> contextFactory)
         {
             _serviceProvider = services.BuildServiceProvider();
             _configuration = configuration;
+            _contextFactory = contextFactory ?? (() => new DatabaseContextService(_configuration));
         }
         public bool registrarUsuario(string userName, string pass)
         {
@@ -18,7 +27,7 @@ namespace endy.Services.RegistraUsuarioService
             {
                 var usuarioToSave = new CriptografiaService().CriptografaUsuario(userName, pass);
 
-                using (var context = new DatabaseContextService(_configuration))
+                using (var context = _contextFactory())
                 {
                     context.usuarioModels.Add(usuarioToSave);
                     context.SaveChanges();
@@ -39,7 +48,7 @@ namespace endy.Services.RegistraUsuarioService
 
                 var usuarioToSend = new CriptografiaService().CriptografaUsuario(userName, pass);
 
-                using (var context = new DatabaseContextService(_configuration))
+                using (var context = _contextFactory())
                 {
                     usuarioModel = context.usuarioModels.Where(x => x.Usuario == usuarioToSend.Usuario).FirstOrDefault();
                 }
@@ -50,7 +59,7 @@ namespace endy.Services.RegistraUsuarioService
                     string senha = new CriptografiaService().CriptografarSenha(pass, usuarioModel.Salt);
 
 
-                    using (var context = new DatabaseContextService(_configuration))
+                    using (var context = _contextFactory())
                     {
                         usuarioModel = context.usuarioModels.Where(x => x.Usuario == usuarioToSend.Usuario && x.Senha == senha).FirstOrDefault();
                     }
